@@ -1,5 +1,8 @@
+#define _POSIX_C_SOURCE                                                        \
+  199309L // Definir POSIX_C_SOURCE para incluir clock_gettime
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 typedef struct {
   short int signature __attribute__((packed));
   int size __attribute__((packed));
@@ -22,7 +25,7 @@ typedef struct {
 // From the above header, the information really important to us are width,
 // height and bitDepth.
 
-void print_string_liner(char *str, int strlen) {
+void print_string_liner(unsigned char *str, int strlen) {
   for (int i = 0; i < strlen; i++) {
     char *space = (i <= 9) ? "  " : " ";
     printf("b%d:%s%u ", i, space, (unsigned int)str[i]);
@@ -38,16 +41,17 @@ void print_string_liner(char *str, int strlen) {
 int main() {
   unsigned char image_header[54];
   unsigned char color_table[1024];
-  BMP_Header h = {0};
+  // BMP_Header h = {0};
   FILE *stream_in;
 
   stream_in =
       // no tengo que usar abs path si pongo la imgagen en la carpeta out aka
       // donde se esta ejecutando el biarinirio por lo que puedo usar ./
-      fopen("/home/happy/farhampton/marcig/images/src/lena512.bmp", "r");
+      fopen("./linux.bmp", "r");
   for (int i = 0; i < 54; i++) {
     image_header[i] = getc(stream_in);
   }
+  print_string_liner(image_header, 54);
   // lo que hacemos aqui obtener la direccion en memoria del 18 byte del header,
   // despues casteamos esto a un int pointer y cuando lo dereferenciemos el
   // compilador lo va a leer como un numero los bytes estan asi
@@ -57,18 +61,22 @@ int main() {
   // 0123 4567 89
   // 2^9 = 512
   int width = *(int *)&image_header[18];
+  printf("%d \n", width);
   int height = *(int *)&image_header[22];
+  printf("%d \n", height);
   int bit_depth = *(int *)&image_header[28];
 
   if (bit_depth <= 8) {
     fread(color_table, sizeof(unsigned char), 1024, stream_in);
   }
 
-  unsigned char image_data[width * height];
+  unsigned char image_data[(width * height)];
   fread(image_data, sizeof(unsigned char), height * width, stream_in);
-  FILE *our_bmp =
-      fopen("/home/happy/farhampton/marcig/images/src/asdf.bmp", "wb");
-
+  srand(time(NULL)); // Initialization, should only be called once.
+  int r = rand() % 10000;
+  char name[256];
+  sprintf(name, "linux%d.bmp", r);
+  FILE *our_bmp = fopen(name, "wb");
   fwrite(image_header, sizeof(unsigned char), 54, our_bmp);
 
   if (bit_depth <= 8) {
