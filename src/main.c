@@ -25,7 +25,7 @@ typedef struct {
 void print_string_liner(char *str, int strlen) {
   for (int i = 0; i < strlen; i++) {
     char *space = (i <= 9) ? "  " : " ";
-    printf("b%d:%s%d ", i, space, str[i]);
+    printf("b%d:%s%u ", i, space, (unsigned int)str[i]);
     if (str[i] < 9) {
       printf(" ");
     }
@@ -36,13 +36,55 @@ void print_string_liner(char *str, int strlen) {
 }
 
 int main() {
-  char image_header[54];
-  char color_table[1024];
+  unsigned char image_header[54];
+  unsigned char color_table[1024];
   BMP_Header h = {0};
   FILE *stream_in;
+
   stream_in =
+      // no tengo que usar abs path si pongo la imgagen en la carpeta out aka
+      // donde se esta ejecutando el biarinirio por lo que puedo usar ./
       fopen("/home/happy/farhampton/marcig/images/src/lena512.bmp", "r");
-  fread(&h, sizeof(BMP_Header), 1, stream_in);
-  printf("%d \n", h.bits_depth);
+  for (int i = 0; i < 54; i++) {
+    image_header[i] = getc(stream_in);
+  }
+  // lo que hacemos aqui obtener la direccion en memoria del 18 byte del header,
+  // despues casteamos esto a un int pointer y cuando lo dereferenciemos el
+  // compilador lo va a leer como un numero los bytes estan asi
+  // bytes (index en el header)
+  // 1 (18)    2 (19)     3 (20)    4 (21)
+  // 0000 0000 01000 0000 0000 0000 0000 0000 00000
+  // 0123 4567 89
+  // 2^9 = 512
+  int width = *(int *)&image_header[18];
+  int height = *(int *)&image_header[22];
+  int bit_depth = *(int *)&image_header[28];
+
+  if (bit_depth <= 8) {
+    fread(color_table, sizeof(unsigned char), 1024, stream_in);
+  }
+
+  unsigned char image_data[width * height];
+  fread(image_data, sizeof(unsigned char), height * width, stream_in);
+  FILE *our_bmp =
+      fopen("/home/happy/farhampton/marcig/images/src/asdf.bmp", "wb");
+
+  fwrite(image_header, sizeof(unsigned char), 54, our_bmp);
+
+  if (bit_depth <= 8) {
+    fwrite(color_table, sizeof(unsigned char), 1024, our_bmp);
+  }
+
+  fwrite(image_data, sizeof(unsigned char), width * height, our_bmp);
+  fclose(stream_in);
+  fclose(our_bmp);
+  // printf("\n");
+  // printf("%d \n", width);
+  // printf("%d \n", height);
+  // printf("%d \n", bit_depth);
   return 0;
 }
+// rewind(stream_in)
+// k
+// fread(&h, sizeof(BMP_Header), 1, stream_in);
+// printf("%d \n", h.bits_depth);
