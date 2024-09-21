@@ -1,5 +1,3 @@
-#define _POSIX_C_SOURCE                                                        \
-  199309L // Definir POSIX_C_SOURCE para incluir clock_gettime
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -25,6 +23,13 @@ typedef struct {
 // From the above header, the information really important to us are width,
 // height and bitDepth.
 
+FILE *save_in_header(BMP_Header *header, char *image_path) {
+  FILE *stream_in;
+  stream_in = fopen(image_path, "r");
+  fread(header, sizeof(BMP_Header), 1, stream_in);
+  return stream_in;
+}
+
 void print_string_liner(unsigned char *str, int strlen) {
   for (int i = 0; i < strlen; i++) {
     char *space = (i <= 9) ? "  " : " ";
@@ -38,60 +43,34 @@ void print_string_liner(unsigned char *str, int strlen) {
   }
 }
 
+void write_image(const char *name, BMP_Header *header,
+                 const unsigned char *image_data, const int size) {
+  FILE *our_bmp = fopen(name, "wb");
+  fwrite(header, sizeof(unsigned char), 54, our_bmp);
+  fwrite(image_data, sizeof(unsigned char), size, our_bmp);
+  fclose(our_bmp);
+}
+
+int get_image_size(BMP_Header header) {
+  return header.width * header.height * (header.bits_depth / 8);
+}
+
 int main() {
-  unsigned char image_header[54];
-  unsigned char color_table[1024];
-  // BMP_Header h = {0};
-  FILE *stream_in;
-
-  stream_in =
-      // no tengo que usar abs path si pongo la imgagen en la carpeta out aka
-      // donde se esta ejecutando el biarinirio por lo que puedo usar ./
-      fopen("./linux.bmp", "r");
-  for (int i = 0; i < 54; i++) {
-    image_header[i] = getc(stream_in);
-  }
-  print_string_liner(image_header, 54);
-  // lo que hacemos aqui obtener la direccion en memoria del 18 byte del header,
-  // despues casteamos esto a un int pointer y cuando lo dereferenciemos el
-  // compilador lo va a leer como un numero los bytes estan asi
-  // bytes (index en el header)
-  // 1 (18)    2 (19)     3 (20)    4 (21)
-  // 0000 0000 01000 0000 0000 0000 0000 0000 00000
-  // 0123 4567 89
-  // 2^9 = 512
-  int width = *(int *)&image_header[18];
-  printf("%d \n", width);
-  int height = *(int *)&image_header[22];
-  printf("%d \n", height);
-  int bit_depth = *(int *)&image_header[28];
-
-  if (bit_depth <= 8) {
-    fread(color_table, sizeof(unsigned char), 1024, stream_in);
-  }
-
-  unsigned char image_data[(width * height)];
-  fread(image_data, sizeof(unsigned char), height * width, stream_in);
-  srand(time(NULL)); // Initialization, should only be called once.
+  BMP_Header header = {0};
+  srand(time(NULL));
   int r = rand() % 10000;
   char name[256];
+  FILE *stream_in = save_in_header(&header, "./linux.bmp");
+  int size = get_image_size(header);
+  unsigned char image_data[size];
+
+  fread(image_data, sizeof(unsigned char), size, stream_in);
   sprintf(name, "linux%d.bmp", r);
-  FILE *our_bmp = fopen(name, "wb");
-  fwrite(image_header, sizeof(unsigned char), 54, our_bmp);
-
-  if (bit_depth <= 8) {
-    fwrite(color_table, sizeof(unsigned char), 1024, our_bmp);
-  }
-
-  fwrite(image_data, sizeof(unsigned char), width * height, our_bmp);
+  write_image(name, &header, image_data, size);
+  printf("%d \n", header.bits_depth);
   fclose(stream_in);
-  fclose(our_bmp);
-  // printf("\n");
-  // printf("%d \n", width);
-  // printf("%d \n", height);
-  // printf("%d \n", bit_depth);
-  return 0;
 }
+
 // rewind(stream_in)
 // k
 // fread(&h, sizeof(BMP_Header), 1, stream_in);
