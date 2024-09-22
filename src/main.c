@@ -80,7 +80,20 @@ void free_img(BMP_Image *img) {
 BMP_Image new_bmp_image(const char *file_path) {
 
   BMP_Header header = {0};
-  FILE *stream_in = save_in_header(&header, file_path);
+  FILE *stream_in;
+  stream_in = fopen(file_path, "r");
+
+  if (!stream_in)
+    return (BMP_Image){0};
+
+  fread(&header, sizeof(BMP_Header), 1, stream_in);
+
+  if (ferror(stream_in)) {
+    fclose(stream_in);
+    perror("error saving header");
+    return (BMP_Image){0};
+  }
+
   unsigned char *image_data = NULL;
   unsigned char *color_table = NULL;
 
@@ -185,18 +198,41 @@ void write_image(BMP_Image *img, const char *name) {
   fclose(our_bmp);
 }
 
+void negate_image(BMP_Image *img) {
+
+  // el problema estaba en que estaba multiplicando por la cantidad de bytes por
+  // pixel a la altura y el ancho cuando solamnete se tiene que hacer que una se
+  // multiplique, esto es porque solamnete una dimension de la imagen se va a
+  // contener esa densidad de pixeles extra, poruqe por ejemplo para obtener el
+  // tama;o total de la imagen lo que hacia era multiplicar la altura y anchura
+  // oriignal y luego eso lo multiplicaba por la densidad de pixeles, que tiene
+  // sentido, sin embargo aqui estaba multiplicando ambos lo que no tiene
+  // sentido!, porque seria como multipliccar el area de la imagen dos veces por
+  // la densidad de pixeles
+
+  int height = img->height;
+  int width = img->width * (img->header.bits_depth / 8);
+
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      img->image_data[i * width + j] = 255 - img->image_data[i * width + j];
+    }
+  }
+}
+
 int main() {
-  BMP_Header h = {0};
-  BMP_Image img = new_bmp_image("./linux.bmp");
-  char *linus = get_rand_name("./poop/linuxfinalboss");
+  // BMP_Header h = {0};
+  BMP_Image img = new_bmp_image("./cool.bmp");
+  // char *linus = get_rand_name("./poop/linuxfinalboss2");
   BMP_Image img2 = new_bmp_image("./lena512.bmp");
-  char *lena = get_rand_name("./poop/lenafinalboss");
-  write_image(&img, linus);
+  char *lena = get_rand_name("./poop/cooler");
+  negate_image(&img);
+  write_image(&img, lena);
+  // write_image(&img, linus);
   //
-  write_image(&img2, lena);
-  free_img(&img);
-  free_img(&img2);
-  free(linus);
-  free(lena);
+  // free_img(&img);
+  // free_img(&img2);
+  // free(linus);
+  // free(lena);
   return 0;
 }
